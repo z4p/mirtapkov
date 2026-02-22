@@ -39,7 +39,7 @@ class Game {
         const tank1 = new GameObject(
             0,
             0,
-            'assets/tapok1.png',
+            'assets/markotapok1.png',
             4,
             80,
             this.CELL_SIZE,
@@ -49,7 +49,7 @@ class Game {
         const tank2 = new GameObject(
             8,
             5,
-            'assets/tapok2.png',
+            'assets/markotapok2.png',
             4,
             80,
             this.CELL_SIZE,
@@ -63,7 +63,7 @@ class Game {
         }
 
         const walls = wallsPositions.map(position =>
-            new GameObject(position.x, position.y, 'assets/wall.png', 1, 400, this.CELL_SIZE, 0, `wall${position.x}-${position.y}`)
+            new GameObject(position.x, position.y, 'assets/markowall1.png', 1, 80, this.CELL_SIZE, 0, `wall${position.x}-${position.y}`)
         );
 
         this.#gameObjects.push(tank1, tank2, ...walls);
@@ -149,12 +149,26 @@ class Game {
         if (gameObject && (gameObject.getName() === 'tank1' || gameObject.getName() === 'tank2')) {
             clickedTank = gameObject;
         }
+
         if (clickedTank) {
-            if (this.#cellActive && this.#cellActive.x === cellX && this.#cellActive.y === cellY) {
-                this.#cellActive = null;
-            } else {
-                this.#cellActive = {x: cellX, y: cellY};
-                this.recalculateMovingArea(clickedTank);
+            const activeTank = this.#cellActive
+                ? this.getObjectAt(this.#cellActive.x, this.#cellActive.y)
+                : null;
+            const isDeselectActiveTank = activeTank && activeTank.getCellX() === cellX && activeTank.getCellY() === cellY;
+            const isFireAction = activeTank &&
+                    !(activeTank.getCellX() === cellX && activeTank.getCellY() === cellY) &&
+                    this.isOneSeeOther(activeTank, clickedTank);
+
+            switch (true) {
+                case isDeselectActiveTank:
+                    this.#cellActive = null;
+                    break;
+                case isFireAction:
+                    this.fire(activeTank, clickedTank);
+                    break;
+                default:
+                    this.#cellActive = {x: cellX, y: cellY};
+                    this.recalculateMovingArea(clickedTank);
             }
         } else {
             const isCellInMovingArea = this.#movingArea
@@ -182,6 +196,7 @@ class Game {
                     if (x === cellX && y === cellY) {
                         currentPath.push({x: x, y: y});
                         path = currentPath;
+
                         return true;
                     }
 
@@ -271,5 +286,14 @@ class Game {
         });
 
         return object;
+    }
+
+    /**
+     *
+     * @param activeTank{GameObject}
+     * @param clickedTank{GameObject}
+     * @returns {boolean}
+     */
+    isOneSeeOther(activeTank, clickedTank) {
     }
 }
