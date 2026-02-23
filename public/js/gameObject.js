@@ -7,9 +7,9 @@ class GameObject
     };
 
     DIRECTION = {
-        right: 0,
-        bottom: 1,
-        left: 2,
+        left: 0,
+        right: 1,
+        bottom: 2,
         top: 3,
     };
 
@@ -31,7 +31,6 @@ class GameObject
     #status;
     #name;
     #moveLength = 3;
-    #shootLength = 3;
     #movingPath;
 
     constructor(cellX, cellY, spriteSrc, spriteFrames, spriteSize, cellSize, direction, name) {
@@ -82,11 +81,11 @@ class GameObject
                 this.#X -= this.SPEED * dt;
             }
             if (movingVector.y === 1) {
-                this.#setDirection(this.DIRECTION.bottom);
+                //this.#setDirection(this.DIRECTION.bottom);
                 this.#Y += this.SPEED * dt;
             }
             if (movingVector.y === -1) {
-                this.#setDirection(this.DIRECTION.top);
+                //this.#setDirection(this.DIRECTION.top);
                 this.#Y -= this.SPEED * dt;
             }
 
@@ -167,7 +166,7 @@ class GameObject
         return this.#moveLength;
     }
 
-    getShootLength() {
-        return this.#shootLength;
+    destroy() {
+        this.#sprite = null;
     }
 }

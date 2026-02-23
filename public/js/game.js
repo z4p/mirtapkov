@@ -43,7 +43,7 @@ class Game {
             4,
             80,
             this.CELL_SIZE,
-            0,
+            1,
             'tank1'
         );
         const tank2 = new GameObject(
@@ -53,7 +53,7 @@ class Game {
             4,
             80,
             this.CELL_SIZE,
-            2,
+            0,
             'tank2'
         );
 
@@ -68,13 +68,14 @@ class Game {
 
         this.#gameObjects.push(tank1, tank2, ...walls);
 
-        setInterval(() => this.draw(), 50);
+        this.draw();
     }
 
     draw() {
         this.drawBackground();
+        this.#gameObjects.forEach(gameObject => gameObject.draw(this.#ctx));
 
-        this.#gameObjects.forEach(gameObject => gameObject.draw(this.#ctx, this.CELL_SIZE));
+        requestAnimationFrame(() => this.draw());
     }
 
     drawBackground() {
@@ -154,13 +155,13 @@ class Game {
             const activeTank = this.#cellActive
                 ? this.getObjectAt(this.#cellActive.x, this.#cellActive.y)
                 : null;
-            const isDeselectActiveTank = activeTank && activeTank.getCellX() === cellX && activeTank.getCellY() === cellY;
+            const isClickedActiveTank = activeTank && activeTank.getCellX() === cellX && activeTank.getCellY() === cellY;
             const isFireAction = activeTank &&
                     !(activeTank.getCellX() === cellX && activeTank.getCellY() === cellY) &&
                     this.isOneSeeOther(activeTank, clickedTank);
 
             switch (true) {
-                case isDeselectActiveTank:
+                case isClickedActiveTank:
                     this.#cellActive = null;
                     break;
                 case isFireAction:
@@ -189,46 +190,47 @@ class Game {
 
                 const game = this;
 
-                function deepSearch(x, y, length, currentPath) {
-                    if (length < 0) return false;
-                    if (x < 0 || y < 0 || x > game.#cellsWidth || y > game.#cellsHeight - 1) return false;
+                function deepSearch(x, y, length, currentPath, visited = new Set()) {
+                    if (length < 0) return;
+                    if (x < 0 || y < 0 || x > game.#cellsWidth || y > game.#cellsHeight - 1) return;
+
+                    const key = `${x}:${y}`;
+                    if (visited.has(key)) return; // Предотвращаем повторные посещения
+                    visited.add(key);
 
                     if (x === cellX && y === cellY) {
                         currentPath.push({x: x, y: y});
-                        path = currentPath;
-
-                        return true;
+                        if (path.length === 0 || path.length > currentPath.length) {
+                            path = new Array(...currentPath);
+                        }
+                        currentPath.pop();
+                        visited.delete(key);
+                        return;
                     }
 
                     const objectAtCell = game.getObjectAt(x,y);
                     if (objectAtCell === null || objectAtCell === activeTank) {
                         currentPath.push({x: x, y: y});
 
-                        if (
-                            deepSearch(x-1, y, length-1, currentPath) ||
-                            deepSearch(x+1, y, length-1, currentPath) ||
-                            deepSearch(x, y-1, length-1, currentPath) ||
-                            deepSearch(x, y+1, length-1, currentPath)
-                        ) {
-                            return true;
-                        }
+                        deepSearch(x-1, y, length-1, currentPath);
+                        deepSearch(x+1, y, length-1, currentPath);
+                        deepSearch(x, y-1, length-1, currentPath);
+                        deepSearch(x, y+1, length-1, currentPath);
 
                         currentPath.pop();
                     }
 
-                    return false;
+                    visited.delete(key);
                 }
 
-                const pathFound = deepSearch(activeTank.getCellX(), activeTank.getCellY(), activeTank.getMoveLength(), [])
+                deepSearch(activeTank.getCellX(), activeTank.getCellY(), activeTank.getMoveLength(), []);
 
-
-                if (pathFound) {
+                if (path.length) {
                     activeTank.movePath(path);
                     this.#movingArea = [];
                 } else {
                     throw new Error('Path not found');
                 }
-
             }
 
             this.#cellActive = null;
@@ -239,15 +241,17 @@ class Game {
      * @param tank {GameObject}
      */
     recalculateMovingArea(tank) {
-        const l = tank.getMoveLength();
-
         let allowedCells = [];
 
         const game = this;
 
-        function checkAllowedMoves(x, y, length) {
+        function checkAllowedMoves(x, y, length, visited = new Set()) {
             if (length < 0) return;
             if (x < 0 || y < 0 || x > game.#cellsWidth || y > game.#cellsHeight - 1) return;
+
+            const key = `${x}:${y}`;
+            if (visited.has(key)) return; // Предотвращаем повторные посещения
+            visited.add(key);
 
             const objectAtCell = game.getObjectAt(x,y);
             if (objectAtCell === null || objectAtCell === tank) {
@@ -260,6 +264,8 @@ class Game {
             checkAllowedMoves(x+1, y, length-1);
             checkAllowedMoves(x, y-1, length-1);
             checkAllowedMoves(x, y+1, length-1);
+
+            visited.delete(key);
         }
 
         checkAllowedMoves(tank.getCellX(), tank.getCellY(), tank.getMoveLength());
@@ -289,11 +295,61 @@ class Game {
     }
 
     /**
-     *
      * @param activeTank{GameObject}
-     * @param clickedTank{GameObject}
+     * @param target{GameObject}
      * @returns {boolean}
      */
-    isOneSeeOther(activeTank, clickedTank) {
+    isOneSeeOther(activeTank, target) {
+        const vector = {
+            x: target.getCellX() - activeTank.getCellX(),
+            y: target.getCellY() - activeTank.getCellY(),
+        };
+
+        if (vector.x === 0 && vector.y === 0) {
+            throw new Error('Нельзя стрелять в свою ячейку');
+        }
+
+        // если не находятся на одной линии
+        if (vector.x !== 0 && vector.y !== 0) {
+            return false;
+        }
+
+        const dv = {
+            x: vector.x > 0 ? vector.x / Math.abs(vector.x) : 0,
+            y: vector.y > 0 ? vector.y / Math.abs(vector.y) : 0,
+        };
+
+        for (
+            let cell = {x: activeTank.getCellX(), y: activeTank.getCellY()};
+            cell.x !== target.getCellX() && cell.x !== target.getCellY();
+            cell.x += dv.x, cell.y += dv.y
+        ) {
+            const objectAtCell = this.getObjectAt(cell.x, cell.y);
+            if (objectAtCell && objectAtCell !== activeTank && objectAtCell !== target) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param activeTank{GameObject}
+     * @param target{GameObject}
+     * @returns {void}
+     */
+    fire(activeTank, target) {
+        console.log(activeTank, `shoot to`, target);
+    }
+
+    destroy() {
+        // Очищаем игровые объекты
+        this.#gameObjects.forEach(obj => {
+            if (obj.destroy) obj.destroy();
+        });
+        this.#gameObjects = [];
+        this.#movingArea = [];
+        this.#cellActive = null;
+        this.#cellHover = null;
     }
 }
