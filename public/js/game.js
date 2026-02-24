@@ -8,6 +8,7 @@ class Game {
     #movingArea;
     #cellsWidth;
     #cellsHeight;
+    #timestamp;
 
     constructor() {
         this.#canvas = document.getElementById('gamescreen');
@@ -17,8 +18,8 @@ class Game {
         this.#cellHover = null;
         this.#cellActive = null;
 
-        this.#cellsWidth = Math.floor(this.#ctx.width / this.CELL_SIZE);
-        this.#cellsHeight = Math.floor(this.#ctx.height / this.CELL_SIZE);
+        this.#cellsWidth = Math.floor(this.#canvas.width / this.CELL_SIZE);
+        this.#cellsHeight = Math.floor(this.#canvas.height / this.CELL_SIZE);
 
         this.#canvas.addEventListener('click', event => {
             const x = event.offsetX;
@@ -71,11 +72,26 @@ class Game {
         this.draw();
     }
 
-    draw() {
+    draw(timestamp = 0) {
+        const dt = timestamp - (this.#timestamp ?? 0);
+        this.#timestamp = timestamp;
+        const fps = dt > 0
+            ? 1000 / dt
+            : 0;
+
         this.drawBackground();
+
+        this.#ctx.save();
+        this.#ctx.font = '16px "Arial", san-serif';
+        this.#ctx.strokeStyle = '#FFFF00';
+        this.#ctx.fillStyle = '#FFFF00';
+        this.#ctx.lineWidth = 3;
+        this.#ctx.fillText(Math.floor(fps).toLocaleString(), 10, 20);
+        this.#ctx.restore();
+
         this.#gameObjects.forEach(gameObject => gameObject.draw(this.#ctx));
 
-        requestAnimationFrame(() => this.draw());
+        requestAnimationFrame(timestamp => this.draw(timestamp));
     }
 
     drawBackground() {
@@ -83,14 +99,13 @@ class Game {
         this.#ctx.fillStyle = '#DDEEFF';
         this.#ctx.strokeStyle = '#333333';
 
-        this.#ctx.fillRect(1, 1, this.#canvas.width-1, this.#canvas.height-1);
-        this.#ctx.rect(1, 1, this.#canvas.width-1, this.#canvas.height-1);
+        this.#ctx.fillRect(0, 0, this.#canvas.width, this.#canvas.height);
 
-        for (let i = 0; i <= this.#canvas.width / this.CELL_SIZE; i++) {
+        for (let i = 0; i <= this.#cellsWidth; i++) {
             this.#ctx.moveTo(i * this.CELL_SIZE, 0);
             this.#ctx.lineTo(i * this.CELL_SIZE, this.#canvas.height);
         }
-        for (let j = 0; j <= this.#canvas.height; j++) {
+        for (let j = 0; j <= this.#cellsHeight; j++) {
             this.#ctx.moveTo(0, j * this.CELL_SIZE);
             this.#ctx.lineTo(this.#canvas.width, j * this.CELL_SIZE);
         }
@@ -163,9 +178,12 @@ class Game {
             switch (true) {
                 case isClickedActiveTank:
                     this.#cellActive = null;
+                    this.#movingArea = [];
                     break;
                 case isFireAction:
                     this.fire(activeTank, clickedTank);
+                    this.#cellActive = null;
+                    this.#movingArea = [];
                     break;
                 default:
                     this.#cellActive = {x: cellX, y: cellY};
@@ -247,7 +265,7 @@ class Game {
 
         function checkAllowedMoves(x, y, length, visited = new Set()) {
             if (length < 0) return;
-            if (x < 0 || y < 0 || x > game.#cellsWidth || y > game.#cellsHeight - 1) return;
+            if (x < 0 || y < 0 || x >= game.#cellsWidth || y >= game.#cellsHeight) return;
 
             const key = `${x}:${y}`;
             if (visited.has(key)) return; // Предотвращаем повторные посещения
@@ -315,8 +333,8 @@ class Game {
         }
 
         const dv = {
-            x: vector.x > 0 ? vector.x / Math.abs(vector.x) : 0,
-            y: vector.y > 0 ? vector.y / Math.abs(vector.y) : 0,
+            x: vector.x !== 0 ? vector.x / Math.abs(vector.x) : 0,
+            y: vector.y !== 0 ? vector.y / Math.abs(vector.y) : 0,
         };
 
         for (
