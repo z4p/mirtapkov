@@ -10,9 +10,28 @@ class Game {
     #cellsHeight;
     #timestamp;
 
+    /**
+     * @type {HTMLAudioElement}
+     */
+    #backgroundMusic = null;
+    #controls;
+
     constructor() {
         this.#canvas = document.getElementById('gamescreen');
         this.#ctx = this.#canvas.getContext("2d");
+        this.#controls = {
+            music: document.getElementById('btnControlMusic'),
+            sounds: document.getElementById('btnControlSounds'),
+        };
+        this.#controls.music.addEventListener('click', e => {
+            e.preventDefault();
+            if (this.#backgroundMusic === null) {
+                this.backgroundMusic('assets/iron-horizon.mp3');
+            } else {
+                this.#backgroundMusic.volume = this.#backgroundMusic.volume ? 0 : 0.3;
+            }
+            e.target.classList.toggle('control_off');
+        });
         this.#gameObjects = [];
         this.#movingArea = [];
         this.#cellHover = null;
@@ -358,6 +377,11 @@ class Game {
      */
     fire(activeTank, target) {
         console.log(activeTank, `shoot to`, target);
+
+        const bullet = new GameObject(activeTank.getCellX(), activeTank.getCellY(), 'assets/bullet.png', 1, 200, 200, 1, 'bullet');
+        const bulletPath = this.pathFinder(activeTank, target);
+        bullet.movePath(bulletPath);
+        this.#gameObjects.push(bullet);
     }
 
     destroy() {
@@ -369,5 +393,56 @@ class Game {
         this.#movingArea = [];
         this.#cellActive = null;
         this.#cellHover = null;
+    }
+
+    pathFinder(forObject, toObject, maxLength = 100) {
+        let path = [];
+
+        const game = this;
+
+        function deepSearch(x, y, length, currentPath, visited = new Set()) {
+            if (length < 0) return;
+            if (x < 0 || y < 0 || x > game.#cellsWidth || y > game.#cellsHeight - 1) return;
+
+            const key = `${x}:${y}`;
+            if (visited.has(key)) return; // Предотвращаем повторные посещения
+            visited.add(key);
+
+            if (x === toObject.getCellX() && y === toObject.getCellY()) {
+                currentPath.push({x: x, y: y});
+                if (path.length === 0 || path.length > currentPath.length) {
+                    path = new Array(...currentPath);
+                }
+                currentPath.pop();
+                visited.delete(key);
+                return;
+            }
+
+            const objectAtCell = game.getObjectAt(x,y);
+            if (objectAtCell === null || objectAtCell === toObject) {
+                currentPath.push({x: x, y: y});
+
+                deepSearch(x-1, y, length-1, currentPath);
+                deepSearch(x+1, y, length-1, currentPath);
+                deepSearch(x, y-1, length-1, currentPath);
+                deepSearch(x, y+1, length-1, currentPath);
+
+                currentPath.pop();
+            }
+
+            visited.delete(key);
+        }
+
+        deepSearch(forObject.getCellX(), forObject.getCellY(), maxLength, []);
+
+        return path;
+    }
+
+    backgroundMusic(filename) {
+        const audio = new Audio(filename);
+        audio.loop = true;
+        audio.volume = 0.3;
+        audio.play();
+        this.#backgroundMusic = audio;
     }
 }

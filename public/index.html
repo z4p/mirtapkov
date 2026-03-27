@@ -2,7 +2,7 @@
 <html lang="ru">
 <meta charset="utf-8">
 <head>
-    <title>МирТапков</title>
+    <title>Мир Тапков</title>
     <style>
         * {
             box-sizing: border-box;
@@ -23,11 +23,25 @@
             text-align: center;
             margin-bottom: 50px;
         }
+
+        .control {
+            color: #C33;
+            text-decoration: none;
+        }
+
+        .control.control_off {
+            text-decoration: line-through #333;
+        }
     </style>
 </head>
 <body>
     <div>
-        <h1>Мир Тапков</h1>
+        <h1>
+            Мир Тапков
+
+            <a href="#" id="btnControlMusic" class="control control_off">♫</a>
+            <a href="#" id="btnControlSounds" class="control control_off">🔈</a>
+        </h1>
         <canvas id="gamescreen" width="720" height="480"></canvas>
     </div>
 
